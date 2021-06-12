@@ -1,0 +1,10 @@
+uint16 RESET = 0
+uint16 MOVE_1 = 1
+uint16 MOVE_2 = 2
+uint16 GRASP = 3
+uint16 PLACE = 4
+
+uint16 transition
+---
+bool success
+ros_training_2/State state
