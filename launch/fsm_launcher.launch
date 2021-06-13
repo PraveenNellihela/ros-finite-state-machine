@@ -1,0 +1,4 @@
+<launch>
+    <param name="frequency" type="double" value="0.5" />
+    <node pkg="ros_training_2" type="fsm_server.py" name="fsm_server"/>
+</launch>
