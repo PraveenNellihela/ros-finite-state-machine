@@ -3,20 +3,27 @@
 import rospy
 from ros_training_2.srv import TriggerTransition
 
+
 def fsm_client(transition):
-    print('now in fsm_client')
-    rospy.wait_for_service('~trigger')
+    rospy.wait_for_service('/fsm/trigger')
     try:
-        fsm_server = rospy.ServiceProxy('~trigger', TriggerTransition)
-        response = fsm_server(transition)
-        print('fsm_client response is :'.format(response))
-        return response
+        fsm_server = rospy.ServiceProxy('/fsm/trigger', TriggerTransition)
+        if fsm_server(transition).success:
+            print('transition was successful')
+        else:
+            print('cannot transition to given state from current state')
+        print('Current state is ', fsm_server(transition).state, '\n')
     except rospy.ServiceException as e:
         print('Service call failed. %s', e)
 
 
 if __name__ == '__main__':
     rospy.init_node('fsm_client')
-    t = input('enter transition: ')
-    print('now in state: %s' % fsm_client(int(t)))
+    while not rospy.is_shutdown():
+        t = input('enter state to transition to: ')
+        if t == 'exit':
+            break
+        else:
+            fsm_client(int(t))
+
 
