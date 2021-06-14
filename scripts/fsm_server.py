@@ -1,66 +1,55 @@
 #!usr/bin/env python3
 import rospy
 from ros_training_2.msg import State
-from ros_training_2.srv import TriggerTransition, TriggerTransitionResponse
+from ros_training_2.srv import TriggerTransition, TriggerTransitionResponse, TriggerTransitionRequest
 from transitions import Machine
+
+f = rospy.get_param('frequency')
 
 
 class FSM(object):
     def __init__(self):
         self.pub = rospy.Publisher("~state", State, queue_size=10)
         self.serv = rospy.Service("~trigger", TriggerTransition, self.service_callback)
-        self.timer = rospy.Timer(rospy.Duration(0.5), self.my_callback)  # TODO: make parameter
+        self.timer = rospy.Timer(rospy.Duration(f), self.my_callback)
         self.state = State.START
-        rospy.spin()
 
-        self.states = ['0', '1', '2', '3', '4']
+        self.states = [str(State.START), str(State.ATLOC1), str(State.ATLOC2),
+                       str(State.GRASPED_OBJ), str(State.PLACED_OBJ)]
         self.transitions = [
-            {'trigger': '0', 'source': '1', 'dest': '0'},
-            {'trigger': '0', 'source': '1', 'dest': '0'},
-            {'trigger': '0', 'source': '2', 'dest': '0'},
-            {'trigger': '0', 'source': '3', 'dest': '0'},
-            {'trigger': '1', 'source': '0', 'dest': '1'},
-            {'trigger': '1', 'source': '4', 'dest': '1'},
-            {'trigger': '2', 'source': '1', 'dest': '2'},
-            {'trigger': '3', 'source': '2', 'dest': '3'},
-            {'trigger': '4', 'source': '3', 'dest': '4'},
+            {'trigger': str(TriggerTransitionRequest.RESET), 'source': str(State.ATLOC1), 'dest': str(State.START)},
+            {'trigger': str(TriggerTransitionRequest.RESET), 'source': str(State.ATLOC2), 'dest': str(State.START)},
+            {'trigger': str(TriggerTransitionRequest.RESET), 'source': str(State.GRASPED_OBJ), 'dest': str(State.START)},
+            {'trigger': str(TriggerTransitionRequest.RESET), 'source': str(State.PLACED_OBJ), 'dest': str(State.START)},
+            {'trigger': str(TriggerTransitionRequest.MOVE_1), 'source': str(State.START), 'dest': str(State.ATLOC1)},
+            {'trigger': str(TriggerTransitionRequest.MOVE_1), 'source': str(State.PLACED_OBJ), 'dest': str(State.ATLOC1)},
+            {'trigger': str(TriggerTransitionRequest.MOVE_2), 'source': str(State.ATLOC1), 'dest': str(State.ATLOC2)},
+            {'trigger': str(TriggerTransitionRequest.GRASP), 'source': str(State.ATLOC2), 'dest': str(State.GRASPED_OBJ)},
+            {'trigger': str(TriggerTransitionRequest.PLACE), 'source': str(State.GRASPED_OBJ), 'dest': str(State.PLACED_OBJ)},
         ]
-        # triggers: 0=reset, 1=move-1, 2=move-2, 3=grasp
-        # states: 00 =start, 11 = at-loc-1, 22=at-loc-2, 33 = grasped-obj
         self.machine = Machine(model=self, states=self.states,
-                               transitions=self.transitions, initial='0')
-
-    def run(self):
+                               transitions=self.transitions, initial=str(State.START))
         rospy.spin()
 
     def service_callback(self, req):
-        # TODO: implement handling of request here; includes FSM logic
-        print('now in service_callback')
-        rospy.loginfo('trying to change state with trigger {}'.format(req.transition))
+        rospy.loginfo('trigger service: trying to change state with trigger {}'.format(req.transition))
+        response = TriggerTransitionResponse()
         try:
             self.trigger(str(req.transition))
-            print('bot is now in state: ', self.state)
         except:
-            print('cannot move to that state')
-            success = False
-            state = self.state
+            response.success = False
+            response.state.state = int(self.state)
         else:
-            success = True
-            state = self.state
-        response = TriggerTransition()
-        response.state = int(state)
-        response.success = success
-        print('response is :'.format(response))
+            response.success = True
+            response.state.state = int(self.state)
         return response
         rospy.spin()
 
     def my_callback(self, event):
-        # TODO: implement publishing of state here; should be really thin
-        self.pub.publish(self.state)
-        print('Timer called at ' + str(event.current_real))
+        self.pub.publish(int(self.state))
+        rospy.loginfo('current state ' + str(self.state) + ', current time ' + str(event.current_real))
 
 
 if __name__ == "__main__":
     rospy.init_node("fsm")
     my_fsm = FSM()
-    #my_fsm.run()
